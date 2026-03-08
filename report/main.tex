@@ -1,0 +1,159 @@
+\documentclass[11pt,english]{article}
+\usepackage{amssymb}
+\usepackage{siunitx}
+\usepackage{tikz}
+\usepackage{subcaption}
+\usepackage{float} % pour [H] si besoin
+\usetikzlibrary{arrows.meta, positioning, graphs}
+
+\usepackage[T1]{fontenc}
+\usepackage[margin = 1in, includefoot]{geometry}
+\def\changemargin#1#2{\list{}{\rightmargin#2\leftmargin#1}\item[]}
+\let\endchangemargin=\endlist 
+\usepackage[utf8]{inputenc}
+\usepackage{babel}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{csquotes}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	urlcolor=magenta,
+    citecolor=blue,
+	linkcolor=magenta,
+	breaklinks=true
+}
+
+\usepackage{listings}
+\lstdefinestyle{cstyle}{
+    language=C,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red!60!black},
+    commentstyle=\color{green!50!black}\itshape,
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    stepnumber=1,
+    numbersep=8pt,
+    tabsize=2,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    rulecolor=\color{black!30},
+    breaklines=true,
+    breakatwhitespace=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    upquote=true
+}
+
+\lstset{style=cstyle}
+
+\usepackage{graphicx} % Required for inserting images
+\usepackage[numbib] {tocbibind}
+\usepackage{datetime}
+\parskip=2mm
+\parindent=0mm
+
+\begin{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Page de garde
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\thispagestyle{empty}
+
+\begin{center}
+    \includegraphics[width=9cm] {assets/img/logo-ufr.pdf}       
+
+    \vfill
+
+    {
+	\large
+    	\textsc{
+    	    CMI d'informatique \\
+    	    Cursus Master en Ingénierie en Informatique, Systèmes et Réseaux
+    	}
+    }
+
+    \bigskip\bigskip
+    \bigskip\bigskip
+
+    {\huge Travail d’Étude et de Recherche (TER)}
+
+    \bigskip\bigskip
+
+    % Identité des auteurs
+    {\large Jeronimo \textsc{Herdoïza}} \\
+
+    \medskip
+    
+    % Contacter les auteurs
+    {\small jeronimo.herdoiza@etu.unistra.fr}
+
+    \vfill
+
+    {
+	\Huge
+    	\textsc{
+    	    Thread Scheduling for Transformers\\
+    	}
+    }
+    
+
+    \vfill
+    \vfill
+
+    \newdate{date}{13}{05}{2026}
+    \displaydate{date}
+
+    \vfill
+
+    {\large Research work supervised by}
+
+    \medskip
+
+    % Identité de l'encadrant
+    {\large Cedric \textsc{Bastoul}}\\
+
+    % Contact mail ou téléphone
+    {\small  bastoul@unistra.fr }
+
+    \bigskip
+    \bigskip
+\end{center}
+
+\clearpage
+
+
+
+\tableofcontents
+
+\clearpage
+
+\section{Introduction}
+\section{Background}
+\section{State of the art}
+    \subsection{Thread Scheduling in Parallel Computing}
+
+    Thread scheduling has been a fundamental problem im parallel computing since several decades: given a set of computations and a fixed number of CPU cores, the scheduler has to decide which thread runs on which core at which time. As of today, where multicore architecures have become the norm, these decisions have a critical impact on load balance, cache utilization, memory locality, and synchronization overhead. To address this problem, two main families of scheduling policies have been found to be effective: \emph{work sharing} and \emph{work stealing}.
+
+    \subsection{Work Sharing}
+
+    \emph{Work sharing} is the dominant model in shared-memory parallel programming. When new work is created, this scheduler assigns the tasks among the available worker threads. This approach is rather simple but can lead to poor load balance when the cost of iterations varies significantly, this is due to the fact that the work distribution is set before the loop begins and cannot be adjusted at runtime.
+
+
+    \subsection{Work Stealing}
+
+\section{Implementation}
+\section{Methodology}
+\section{Discussion}
+\section{Conclusion}
+
+\bibliographystyle{alpha}
+\bibliography{assets/sched-ter}
+
+\end{document}
