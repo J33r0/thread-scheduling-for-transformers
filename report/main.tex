@@ -159,7 +159,19 @@
 
     The work by Blumofe and Leiserson~\cite{blumofe1999workstealing} made work stealing widely adopted in parallel programming. For instance OpenMP implemented work stealing in its task clause. However, this implementation is not standardized in the API and varies significantly among different runtimes, making it difficult to reason about or tune for a specific workload.
 
-    
+    \subsection{Advanced Scheduling Variants}
+    Several variants of work stealing have been proposed in the literature because of the limitations of the original scheme. Especially in the context of Non Uniform Memory Access (NUMA) architectures, such as the ones studied in this work, where stealing from a remote thread can be costly. This has motivated the design of NUMA-aware work stealing and other scheduling strategies.
+
+    \paragraph{Cost-Aware Work Stealing (COWS).}
+    Mishra and Nandivada~\cite{mishra2024cows} identify three fundamental shortcomings when work stealing is applied to parallel-for loops:  
+    \begin{itemize}
+        \item not all iterations take the same time, this means that stealing a fixed number of iterations will not equalize the load,
+        \item selecting a suitable victim is non-trivial, and selecting one randomly performs poorly,
+        \item the per-thread deque required by traditional work stealing introduces overhead that exceeds its benefit for moderately irregular loops.
+    \end{itemize}
+    Their scheme addresses all three simultaneously.
+
+    COWS proposes two variants. Work Stealing based on Remaining Iterations (\emph{WSRI}) tracks the number of remaining iterations for each thread in a lightweight shared scalar, replacing the deque entirely, and uses this information to select the most loaded victim. Work Stealing based on Remaining Workload (\emph{WSRW}) uses a compile-time analysis to emit application-specific instrumentation code, enabling the runtime to estimate the remaining computational cost of each thread rather than merely its iteration count. In 225 out of 275 tested configurations spanning 7 benchmarks, 5 datasets, and 2 hardware platforms, COWS outperforms the best available OpenMP scheduling scheme, with clear advantages for power-law graph workloads where static and dynamic schedules both fail~\cite{mishra2024cows}.
 
 
 
