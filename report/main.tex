@@ -173,6 +173,12 @@
 
     COWS proposes two variants. Work Stealing based on Remaining Iterations (\emph{WSRI}) tracks the number of remaining iterations for each thread in a lightweight shared scalar, replacing the deque entirely, and uses this information to select the most loaded victim. Work Stealing based on Remaining Workload (\emph{WSRW}) uses a compile-time analysis to emit application-specific instrumentation code, enabling the runtime to estimate the remaining computational cost of each thread rather than merely its iteration count. In 225 out of 275 tested configurations spanning 7 benchmarks, 5 datasets, and 2 hardware platforms, COWS outperforms the best available OpenMP scheduling scheme, with clear advantages for power-law graph workloads where static and dynamic schedules both fail~\cite{mishra2024cows}.
 
+    \paragraph{NUMA-Aware and Distance-Aware Work Stealing.}    
+    It's well known in systems programming that memory accesses are costly. On NUMA architectures, a naive implementation of work stealing can lead to significant performance issues due to this issue. Indeed, when a thread steals a task from a remote NUMA node, it may move the task far from its data and cause repeated remote memory accesses for the stolen task's entire execution.
+
+    Applied to Cholesky factorization and symmetric matrix inversion on a large NUMA system, this approach achieves up to a twofold speedup in flop rate over non-discriminating policies and matches or exceeds the performance of state-of-the-art commercial and open-source HPC libraries~\cite{alomairy2015numa}. The key insight is that on modern hardware, the scheduler must treat the memory topology of the machine as a first-class input to its decision-making, not an afterthought.
+
+    Al-Omairy et al.~\cite{alomairy2015numa} address this with a \emph{distance-aware} scheduling policy built on the OmpSs task-based programming model. The key insight for their scheduler must treat the memory topology of the machine as a critical input to its decision-making, not as a secondary concern. They approach the scheduling in a topology-aware manner. For instance, a thief will prefer to steal from its nearest NUMA neighbor, making the decision to go for more distant nodes exclusively when local work is exhausted. When applied to Cholesky factorization and symmetric matrix inversion on a large NUMA system, the results show up to a twofold speedup, matching or exceeding the performance of state-of-the-art commercial and open-source HPC libraries~\cite{alomairy2015numa}.
 
 
 \section{Implementation}
