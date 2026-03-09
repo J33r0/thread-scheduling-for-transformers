@@ -107,7 +107,7 @@
     \vfill
     \vfill
 
-    \newdate{date}{13}{05}{2026}
+    \newdate{date}{03}{05}{2026}
     \displaydate{date}
 
     \vfill
@@ -143,12 +143,29 @@
 
     \subsection{Work Sharing}
 
-    \emph{Work sharing} is the dominant model in shared-memory parallel programming. When new work is created, this scheduler assigns the tasks among the available worker threads. This approach is rather simple but can lead to poor load balance when the cost of iterations varies significantly, this is due to the fact that the work distribution is set before the loop begins and cannot be adjusted at runtime.
+    With \emph{work sharing} when new work is created, the scheduler assigns the tasks among the available worker threads. This approach is rather simple but can lead to poor load balance when the cost of iterations varies significantly, this is due to the fact that the work distribution is set before the loop begins and cannot be adjusted at runtime.
 
+    OpenMP is the most widely used API in this domain~\cite{mishra2024cows}. It provides several clauses that aim to avoid this problem and improve load balance. For instance, the \texttt{dynamic} clause allows the scheduler to assign iterations to threads dynamically as they become available. The \texttt{guided} clause works in a similar way but executes large chunks of iterations at the beginning of the loop and decrease the size of these chunks as the loop progresses. Finally, the \texttt{static} clause works the way described above, in most implementations of OpenMP, this is the default scheduling policy.
 
     \subsection{Work Stealing}
 
+    \emph{Work stealing} was formalized by Blumofe and Leiserson~\cite{blumofe1999workstealing} in 1999. They take a different approach than work sharing: rather than pushing work from a central source, idle threads will pull tasks from other busy threads. This means that all threads have their own double-ended queue (deque). Inside each thread, tasks first treated in a LIFO order to preserve locality and cache reuse, on the other hand, thieves will come and steal from the oposite end of the deque (FIFO).
+
+    Blumofe and Leiserson proved that on $P$ processors, the expected execution time of a fully strict multithreaded computation under work stealing satisfies:
+    \[
+        T_P \leq \frac{T_1}{P} + O(T_\infty)
+    \]
+    where $T_1$ is the serial execution time and $T_\infty$ is the critical-path length with unlimited processors. Space usage is bounded at $S_1 P$, and expected total communication at $O(PT_\infty(1 + n_d)S_{\max})$, where $S_{\max}$ is the size of the largest activation record and $n_d$ is the maximum thread synchronization depth. This communication bound formally justifies the intuition that work-stealing schedulers are more efficient than work-sharing counterparts: stolen tasks are coarse-grained and steals are rare in balanced workloads~\cite{blumofe1999workstealing}.
+
+    The work by Blumofe and Leiserson~\cite{blumofe1999workstealing} made work stealing widely adopted in parallel programming. For instance OpenMP implemented work stealing in its task clause. However, this implementation is not standardized in the API and varies significantly among different runtimes, making it difficult to reason about or tune for a specific workload.
+
+    
+
+
+
 \section{Implementation}
+Work sharing with OpenMP was studied in depth in the \"Parallel Programming\" course during the automn semester. In this TER, the main focus for the research and implementation will be on work stealing.
+
 \section{Methodology}
 \section{Discussion}
 \section{Conclusion}
