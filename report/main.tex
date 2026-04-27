@@ -136,11 +136,24 @@
 \clearpage
 
 \section{Introduction}
+Large language models based on the Transformer architecture~\cite{vaswani2017attention} have become ubiquitous, powering applications from search engines to personal assistants. While most research focuses on GPU-based inference, a growing class of deployment scenarios: edge devices, mobile phones, embedded systems must run inference on CPU-only hardware. On such platforms, exploiting multicore parallelism efficiently is essential to achieve acceptable latency.
+
+Transformer inference is dominated by general matrix multiplication (GEMM), which accounts for 70--90\% of total compute time~\cite{dice2021transformercpu}. Parallelizing these operations across CPU cores is straightforward; parallelizing them \emph{well} is not. Modern CPUs, particularly mobile and embedded SoCs, feature heterogeneous core configurations, different clock speeds, cache sizes, and memory bandwidths, that render uniform load distribution ineffective. The Qualcomm Snapdragon used in this work, for instance, combines a high-frequency Cortex-X3 prime core, mid-range performance cores, and energy-efficient cores sharing L2 cache, all behind a single shared 8\,MB L3.
+
+Thread scheduling policy is a first-order factor in this setting. Two classical paradigms exist: \emph{work sharing}, where the scheduler proactively distributes tasks to all threads at spawn time, and \emph{work stealing}~\cite{blumofe1999workstealing}, where idle threads autonomously pull tasks from busy peers. Work sharing, as mplemented via OpenMP, is already present in the \texttt{StrasGPT} inference engine. Whether work stealing can improve over it on a heterogeneous ARM SoC, where synchronization costs, core asymmetry, and cache topology interact, is an open empirical question.
+
+This paper addresses that question through three contributions:
+\begin{enumerate}
+    \item A custom work-stealing micro-scheduler implemented in C, integrated into \texttt{StrasGPT} via a Chase--Lev deque with spin-based barriers and false-sharing mitigation, activatable at runtime without recompilation.
+    \item An empirical comparison of work stealing versus OpenMP work sharing across thread counts, core affinity configurations, and two models (Llama-3.2-1B and Qwen3-0.6B), measuring prefill and decode throughput.
+    \item An analysis of how the heterogeneous big.LITTLE topology shapes scheduling efficiency, identifying configurations where work stealing provides consistent gains and those where it regresses.
+\end{enumerate}
+
 \section{Background}
 \section{State of the art}
     \subsection{Thread Scheduling in Parallel Computing}
 
-    Thread scheduling has been a fundamental problem im parallel computing since several decades: given a set of computations and a fixed number of CPU cores, the scheduler has to decide which thread runs on which core at which time. As of today, where multicore architecures have become the norm, these decisions have a critical impact on load balance, cache utilization, memory locality, and synchronization overhead. To address this problem, two main families of scheduling policies have been found to be effective: \emph{work sharing} and \emph{work stealing}.
+    Thread scheduling has been a fundamental problem in parallel computing since several decades: given a set of computations and a fixed number of CPU cores, the scheduler has to decide which thread runs on which core at which time. As of today, where multicore architectures have become the norm, these decisions have a critical impact on load balance, cache utilization, memory locality, and synchronization overhead. To address this problem, two main families of scheduling policies have been found to be effective: \emph{work sharing} and \emph{work stealing}.
 
     \subsection{Work Sharing}
 
@@ -514,6 +527,15 @@ The experimental results highlight a clear dichotomy in the scheduler's behaviou
 The root cause of the regressions at $N=4$--$6$ is the mismatch between the scheduler's \emph{range-based task model} (one steal per initial allocation) and the fine-grained dynamic demand of a heterogeneous platform where the performance differential between A510 and A710 cores is irregular and workload-dependent. Future work should investigate adaptive range splitting (recursive halving when a range is stolen) and bandwidth-aware weight functions to address these limitations.
 
 \section{Conclusion}
+This work investigated whether a custom work-stealing scheduler can improve transformer inference throughput over OpenMP work sharing on a heterogeneous ARM big.LITTLE SoC. Three findings stand out.
+
+\textbf{Homogeneous clusters reward work stealing.} On both the efficiency cluster (cpu\_0\_2, 3$\times$ A510) and the performance cluster (cpu\_3\_6, A710/A715), the work-stealing scheduler delivers consistent decode speedups of $+5$--$13\%$ across thread counts and both models. The gains are most stable on the performance cluster, where larger private L2 caches reduce the relative cost of stealing.
+
+\textbf{Mixed-frequency configurations expose a fundamental limitation.} At $N = 4$--$6$ threads on the full platform (cpu\_0\_7), where A510 and A710/A715 cores coexist, the scheduler regresses by up to $-17\%$ on decode throughput. This pathology stems from two compounding issues: the range-based task decomposition is too coarse to rebalance iteration-level imbalance, and the frequency-proportional weight heuristic does not accurately reflect actual throughput under memory pressure. When the prime X3 core is added at $N = 7$--$8$, the load imbalance grows severe enough that work stealing recovers strongly ($+19$--$29\%$), as the prime core's surplus capacity more than compensates for the heuristic's imprecision.
+
+\textbf{Static scheduling is catastrophic on heterogeneous hardware.} As a motivating baseline, the static OpenMP schedule degrades decode throughput dramatically relative to both dynamic and work-stealing alternatives, confirming that any fixed-partition strategy is fundamentally incompatible with asymmetric core frequencies.
+
+The main open challenge is the mixed-frequency regime. Future work should explore finer task granularity (splitting ranges into individual iterations), topology-aware victim selection to prefer stealing from fast cores, and runtime-measured throughput estimates in place of static frequency ratios. A NUMA-aware extension along the lines of Al-Omairy et al.~\cite{alomairy2015numa} could further reduce the cost of cross-cluster steals.
 
 \bibliographystyle{alpha}
 \bibliography{assets/sched-ter}
