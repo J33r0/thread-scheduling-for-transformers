@@ -150,6 +150,46 @@ This paper addresses that question through three contributions:
 \end{enumerate}
 
 \section{Background}
+\label{sec:background}
+
+This section introduces the key concepts required to understand the rest of thisreport. It covers the Transformer architecture and how inference works, the two scheduling paradigms compared in this work, and the thread pinning mechanisms used to control core affinity on heterogeneous hardware. The central question addressed throughout is: \emph{what is the best thread scheduling strategy for Transformer inference on a heterogeneous multicore CPU?}
+
+\subsection{Transformer Inference on CPU}
+
+A \textbf{Transformer}~\cite{vaswani2017attention} is a neural network architecture based on the \emph{self-attention} mechanism. It processes sequences of tokens through a stack of \emph{decoder layers}, each containing a multi-head attention (MHA) block and a feed-forward network (FFN). Inference proceeds in two phases:
+
+\begin{itemize}
+    \item \textbf{Prefill}: the full input prompt (a sequence of $T$ tokens) is processed in parallel. Computations are data-parallel across tokens and attention heads, making this phase amenable to aggressive parallelization.
+    \item \textbf{Decode}: tokens are generated one at a time in an autoregressive loop. Each forward pass processes a single new token while attending over a \emph{KV-cache} (key-value cache) that accumulates all previously generated key and value projections. This phase is memory-bandwidth-bound rather than compute-bound.
+\end{itemize}
+
+The dominant operation in both phases is \textbf{GEMM} (General Matrix Multiplication), which accounts for 70--90\% of total inference time~\cite{dice2021transformercpu}. All other operations: softmax, layer normalization, residual additions, are negligible by comparison. Parallelizing GEMM efficiently across CPU cores is therefore the primary performance lever.
+
+\textbf{StrasGPT} is the inference engine used in this work. It is a lightweight C implementation of a Transformer decoder, targeting shared-memory multicore CPUs including heterogeneous ARM \textbf{big.LITTLE} SoCs (System on a Chip). Its parallelism is expressed via OpenMP, and this report extends it with a custom work-stealing scheduler.
+
+\subsection{Thread Pinning and Core Affinity}
+
+On a multicore CPU, the OS scheduler may migrate a thread between cores during execution. Such migration is harmful for inference because it destroys L1/L2 cache residency and may move a thread to a core with a different frequency, disrupting the load balance assumptions of the work-stealing initializer.
+
+\textbf{Thread pinning} (also called \emph{core affinity}) binds each thread to a specific physical core using OS primitives. On Linux, this is done via the \texttt{taskset} command or the \texttt{sched\_setaffinity} syscall, which sets the \textbf{CPU affinity mask} of a process or thread, a bitmask indicating on which cores it is allowed to run.
+
+In this work, affinity is controlled at the process level via \texttt{taskset} before launching \texttt{StrasGPT}, so that OpenMP thread $i$ is pinned to physical core P\#$i$. Four affinity configurations are evaluated (detailed in Section~\ref{sec:eval}):
+
+\begin{itemize}
+    \item \textbf{cpu\_7}: single prime core (Cortex-X3 only). Sequential baseline.
+    \item \textbf{cpu\_0\_2}: efficiency cores only (3$\times$ Cortex-A510, 2.0~GHz). Homogeneous low-frequency cluster.
+    \item \textbf{cpu\_3\_6}: performance cores only (2$\times$ A710 + 2$\times$ A715, 2.8~GHz). Homogeneous high-frequency cluster.
+    \item \textbf{cpu\_0\_7}: all 8 cores. Maximally heterogeneous: A510 (2.0~GHz) through X3 (3.36~GHz), a 1.68$\times$ frequency ratio.
+\end{itemize}
+
+The choice of affinity mask has a first-order effect on scheduling performance: it determines whether the core set is homogeneous (making load balance trivial) or heterogeneous (making it a hard problem that motivates work stealing).
+
+\subsection{Problem Statement}
+
+This report investigates the following question: \emph{for Transformer inference on a heterogeneous ARM big.LITTLE CPU, does a custom work-stealing scheduler outperform OpenMP work sharing, and under which conditions?}
+
+To answer it, a Chase--Lev work-stealing scheduler with heterogeneity-aware initial partitioning is implemented in C and integrated into StrasGPT. It is evaluated against OpenMP \texttt{schedule(dynamic)} across four affinity configurations, two models (Llama-3.2-1B and Qwen3-0.6B), two sequence lengths, and thread counts from 1 to 8. Performance is measured in tokens per second (TPS) for both prefill and decode phases.
+
 \section{State of the art}
     \subsection{Thread Scheduling in Parallel Computing}
 
